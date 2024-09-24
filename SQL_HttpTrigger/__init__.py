@@ -7,11 +7,18 @@ import azure.functions as func
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
-    # os.environ['SQLCONNSTR']
-    server = os.environ['SQLSERVER']
-    database = os.environ['SQLDATABASE']
-    username = os.environ['SQLUSERNAME']
-    password = os.environ['SQLPASSWORD']
+
+    # Get SQL connection parameters from environment variables
+    server = os.environ.get('SQLSERVER')
+    database = os.environ.get('SQLDATABASE')
+    username = os.environ.get('SQLUSERNAME')
+    password = os.environ.get('SQLPASSWORD')
+
+    if not all([server, database, username, password]):
+        return func.HttpResponse(
+            "Missing one or more environment variables (SQLSERVER, SQLDATABASE, SQLUSERNAME, SQLPASSWORD).",
+            status_code=500
+        )
 
     # Extract the SQL query from the request body or query string
     try:
@@ -30,29 +37,31 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # Connect to the Azure SQL Database
         conn = pymssql.connect(server=server, user=username,
                                password=password, database=database)
-        print(conn)
-        # Create a cursor object
         cursor = conn.cursor()
 
-        # Execute a query
+        # Execute the query
         cursor.execute(query)
 
-        # Fetch and print the result
+        # Fetch all rows from the executed query
         rows = cursor.fetchall()
 
+        # Create a DataFrame from the query results
         df = pd.DataFrame(rows, columns=[col[0] for col in cursor.description])
 
-        # Prepare the result for response
-        result = df  # [list(row) for row in rows]
-
+        # Check if the DataFrame is empty
         if df.empty:
             return func.HttpResponse("No data found", status_code=200)
-        else:
-            return func.HttpResponse(f"Query result: \n\n{result}", status_code=200)
-        
+
+        # Convert the DataFrame to a string for returning in the HTTP response
+        result_str = df.to_string(index=False)
+
+        return func.HttpResponse(f"Query result: \n\n{result_str}", status_code=200)
+
     except Exception as e:
-        logging.error(f"Error: {e}")
-        return func.HttpResponse(f"Error connecting to database: {e}", status_code=500)
+        logging.error(f"Error occurred: {e}")
+        return func.HttpResponse(f"Error connecting to database: {str(e)}", status_code=500)
+
     finally:
-        # Close the connection
-        conn.close()
+        # Ensure the connection is closed
+        if 'conn' in locals():
+            conn.close()
