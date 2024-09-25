@@ -36,9 +36,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         # Fetch all rows from the executed query
         rows = cursor.fetchall()
-        return func.HttpResponse(f"Query result: {rows}", status_code=200)
+        #return func.HttpResponse(f"Query result: {rows}", status_code=200)
         
-        """
+       
         # Create a DataFrame from the query results
         df = pd.DataFrame(rows, columns=[col[0] for col in cursor.description])
 
@@ -50,7 +50,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         result_str = df.to_string(index=False)
 
         return func.HttpResponse(f"Query result: \n\n{result_str}", status_code=200)
-        """
+        
     except Exception as e:
         logging.error(f"Error occurred: {e}")
         return func.HttpResponse(f"Error connecting to database: {str(e)}", status_code=500)
