@@ -3,21 +3,20 @@ import pymssql
 import pandas as pd
 import azure.functions as func
 
+
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
 
-    # Extract the SQL query from the request body or query string
+    # Extract the SQL query and server parameters from the request body
     try:
         req_body = req.get_json()
         query = req_body.get('query')
+        server = req_body.get('server')
+        database = req_body.get('database')
+        username = req_body.get('username')
+        password = req_body.get('password')
     except ValueError:
         query = req.params.get('query')
-
-    # Get SQL connection parameters from the route
-    server = f"{req.route_params.get('server')}.database.windows.net"
-    database = req.route_params.get('database')
-    username = req.route_params.get('username')
-    password = req.route_params.get('password')
 
     if not all([server, database, username, password, query]):
         return func.HttpResponse(

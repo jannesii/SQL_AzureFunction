@@ -10,7 +10,7 @@
         "get",
         "post"
       ],
-      "route": "query/{server}/{database}/{username}/{password}"
+      "route": "sql/query"
     },
     {
       "type": "http",
