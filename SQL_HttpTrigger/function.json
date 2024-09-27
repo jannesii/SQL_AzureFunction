@@ -9,7 +9,8 @@
       "methods": [
         "get",
         "post"
-      ]
+      ],
+      "route": "query/{server}/{database}/{username}/{password}"
     },
     {
       "type": "http",

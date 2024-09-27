@@ -1,24 +1,10 @@
 import logging
-import os
 import pymssql
 import pandas as pd
 import azure.functions as func
 
-
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
-
-    # Get SQL connection parameters from environment variables
-    server = os.environ.get('SQLSERVER')
-    database = os.environ.get('SQLDATABASE')
-    username = os.environ.get('SQLUSERNAME')
-    password = os.environ.get('SQLPASSWORD')
-
-    if not all([server, database, username, password]):
-        return func.HttpResponse(
-            "Missing one or more environment variables (SQLSERVER, SQLDATABASE, SQLUSERNAME, SQLPASSWORD).",
-            status_code=500
-        )
 
     # Extract the SQL query from the request body or query string
     try:
@@ -27,10 +13,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     except ValueError:
         query = req.params.get('query')
 
-    if not query:
+    # Get SQL connection parameters from the route
+    server = f"{req.route_params.get('server')}.database.windows.net"
+    database = req.route_params.get('database')
+    username = req.route_params.get('username')
+    password = req.route_params.get('password')
+
+    if not all([server, database, username, password, query]):
         return func.HttpResponse(
-            "Please provide a SQL query in the request body or query string.",
-            status_code=400
+            "Missing one or more environment variables (SERVER, DATABASE, USERNAME, PASSWORD, SQLQUERY).",
+            status_code=500
         )
 
     try:
@@ -42,7 +34,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # Execute the query
         cursor.execute(query)
 
-        # Fetch all rows from the executed query
+        # Check if the query is an INSERT, UPDATE, or DELETE
+        if query.strip().lower().startswith(('insert', 'update', 'delete')):
+            # Commit the changes for data-modifying queries
+            conn.commit()
+            return func.HttpResponse(f"Query executed successfully: {query}", status_code=200)
+
+        # If it's a SELECT query, fetch the result set
         rows = cursor.fetchall()
 
         # Create a DataFrame from the query results
@@ -59,7 +57,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     except Exception as e:
         logging.error(f"Error occurred: {e}")
-        return func.HttpResponse(f"Error connecting to database: {str(e)}", status_code=500)
+        return func.HttpResponse(f"Error connecting to database: {str(e)}\nQuery: {query}", status_code=500)
 
     finally:
         # Ensure the connection is closed
